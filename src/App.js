@@ -23,6 +23,7 @@ const VisuallyHiddenInput = styled("input")({
 
 const App = () => {
   const [isItem, setViewState] = useRecoilState(viewState);
+  console.log(isItem);
 
   return (
     <RecoilRoot>

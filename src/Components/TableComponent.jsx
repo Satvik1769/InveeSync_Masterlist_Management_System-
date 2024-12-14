@@ -1,21 +1,29 @@
 import React, { useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useRecoilValue } from "recoil";
+import { useRecoilState } from "recoil";
 import { viewState } from "../Atom/viewState";
 
 const TableComponent = ({ data, onDelete }) => {
-  // Convert the data to an array if it's a single object
-  const rowData = Array.isArray(data) ? data : [data];
+  const [rows, setRows] = useState(Array.isArray(data) ? data : [data]);
+  const [editingCell, setEditingCell] = useState(null);
 
-  // State to hold the rows (you need to manage this in the component)
-  const [rows, setRows] = useState(rowData);
-
-  // Extract the main headers excluding `additional_attributes`
   const headers =
     rows.length > 0
       ? Object.keys(rows[0]).filter((key) => key !== "additional_attributes")
       : [];
+
+  const [isItem, setItem] = useRecoilState(viewState);
+
+  const additionalHeaders = isItem
+    ? [
+        "drawing_revision_number",
+        "drawing_revision_date",
+        "avg_weight_needed",
+        "scrap_type",
+        "shelf_floor_alternate_name",
+      ]
+    : [];
 
   const handleDelete = (index) => {
     // Remove the row at the specified index
@@ -34,24 +42,30 @@ const TableComponent = ({ data, onDelete }) => {
     }
   };
 
-  const currentViewState = useRecoilValue(viewState);
+  const handleCellClick = (rowIndex, columnIndex) => {
+    setEditingCell({ rowIndex, columnIndex });
+  };
 
-  // Predefined headers for additional attributes (split across multiple columns)
-  const additionalHeaders = currentViewState
-    ? [
-        "drawing_revision_number",
-        "drawing_revision_date",
-        "avg_weight_needed",
-        "scrap_type",
-        "shelf_floor_alternate_name",
-      ]
-    : [];
+  const handleCellBlur = () => {
+    setEditingCell(null);
+  };
+
+  const updateCellValue = (rowIndex, columnIndex, newValue) => {
+    setRows((prevRows) => {
+      const updatedRows = [...prevRows];
+      updatedRows[rowIndex] = {
+        ...updatedRows[rowIndex],
+        [headers[columnIndex]]: newValue,
+      };
+      return updatedRows;
+    });
+  };
 
   return (
     <div className="overflow-x-auto w-full px-10 pb-10">
       <table className="min-w-full border border-collapse border-gray-300">
         <thead>
-          <tr className="bg-gray-100">
+          <tr>
             {headers.length > 0 ? (
               headers.map((header) => (
                 <th
@@ -66,7 +80,6 @@ const TableComponent = ({ data, onDelete }) => {
                 No data
               </th>
             )}
-            {/* Additional Attributes Header with 4 Subcolumns */}
             {additionalHeaders.map((header, idx) => (
               <th
                 key={idx}
@@ -81,7 +94,6 @@ const TableComponent = ({ data, onDelete }) => {
           </tr>
         </thead>
         <tbody>
-          {/* Check if there are rows to display */}
           {rows.length === 0 ? (
             <tr>
               <td
@@ -92,12 +104,29 @@ const TableComponent = ({ data, onDelete }) => {
               </td>
             </tr>
           ) : (
-            rows.map((row, index) => (
-              <tr key={index} className="hover:bg-gray-50">
+            rows.map((row, rowIndex) => (
+              <tr key={rowIndex} className="hover:bg-gray-50">
                 {/* Render regular columns */}
-                {headers.map((header) => (
+                {headers.map((header, columnIndex) => (
                   <td key={header} className="px-4 py-2 border-t">
-                    {String(row[header]) || "N/A"}
+                    {editingCell?.rowIndex === rowIndex &&
+                    editingCell?.columnIndex === columnIndex ? (
+                      <input
+                        type="text"
+                        value={row[header] || ""}
+                        onChange={(e) =>
+                          updateCellValue(rowIndex, columnIndex, e.target.value)
+                        }
+                        onBlur={handleCellBlur}
+                        className="w-full"
+                      />
+                    ) : (
+                      <span
+                        onClick={() => handleCellClick(rowIndex, columnIndex)}
+                      >
+                        {row[header] || "N/A"}
+                      </span>
+                    )}
                   </td>
                 ))}
 
@@ -105,9 +134,11 @@ const TableComponent = ({ data, onDelete }) => {
                 {additionalHeaders.map((attrKey, idx) => (
                   <td key={idx} className="px-4 py-2 border-t">
                     {row.additional_attributes &&
-                    row.additional_attributes[attrKey] !== undefined
-                      ? String(row.additional_attributes[attrKey])
-                      : "N/A"}
+                    row.additional_attributes[attrKey] !== undefined ? (
+                      <span>{String(row.additional_attributes[attrKey])}</span>
+                    ) : (
+                      <span>N/A</span>
+                    )}
                   </td>
                 ))}
 
@@ -115,7 +146,7 @@ const TableComponent = ({ data, onDelete }) => {
                   <IconButton
                     aria-label="delete"
                     sx={{ color: "red" }}
-                    onClick={() => handleDelete(index)}
+                    onClick={() => handleDelete(rowIndex)}
                   >
                     <DeleteIcon />
                   </IconButton>
