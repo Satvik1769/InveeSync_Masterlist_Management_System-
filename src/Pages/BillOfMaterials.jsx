@@ -1,33 +1,45 @@
-import React from "react";
+import React, { useEffect } from "react";
 import TableComponent from "../Components/TableComponent";
+import { useRecoilState } from "recoil";
+import { rowDataStateBOM } from "../Atom/rowDataStateBOM"; // Update the import
 
-const sampleData = {
-  internal_item_name: "ABC123",
-  tenant_id: 123,
-  item_description: "Sample Item",
-  uom: "Nos",
-  created_by: "user1",
-  last_updated_by: "user2",
-  type: "sell",
-  max_buffer: 10,
-  min_buffer: 5,
-  customer_item_name: "Customer ABC",
-  is_deleted: false,
-  createdAt: "2023-04-01T12:00:00Z",
-  updatedAt: "2023-04-10T15:30:00Z",
-  additional_attributes: {
-    drawing_revision_number: 1,
-    drawing_revision_date: "2023-04-01",
-    avg_weight_needed: true,
-    scrap_type: "scrap_a",
-    shelf_floor_alternate_name: "shelf_1",
-  },
-};
+// Define Recoil Atom
 
-export default function BillOfMaterials() {
+export default function Item() {
+  const [rowData, setRowData] = useRecoilState(rowDataStateBOM);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const response = await fetch(
+          "https://api-assignment.inveesync.in/bom",
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
+        const data = await response.json();
+        console.log(data);
+
+        // Update the Recoil state only once
+        setRowData(data);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+      }
+    };
+
+    fetchData();
+  }, [setRowData]); // Ensure that useEffect runs only once by providing an empty dependency array
+
   return (
     <div>
-      <TableComponent data={sampleData} />
+      {rowData.length === 0 ? ( // Handle the loading state
+        <p>Loading data...</p>
+      ) : (
+        <TableComponent data={rowData} />
+      )}
     </div>
   );
 }

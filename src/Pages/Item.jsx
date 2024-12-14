@@ -1,12 +1,9 @@
 import React, { useEffect } from "react";
 import TableComponent from "../Components/TableComponent";
-import { atom, useRecoilState } from "recoil";
+import { useRecoilState } from "recoil";
+import { rowDataState } from "../Atom/rowDataState";
 
 // Define Recoil Atom
-const rowDataState = atom({
-  key: "rowState",
-  default: [], // Default to empty array
-});
 
 export default function Item() {
   const [rowData, setRowData] = useRecoilState(rowDataState);

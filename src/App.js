@@ -1,10 +1,11 @@
 import React from "react";
 import Button from "@mui/material/Button";
-import { atom, useRecoilState, RecoilRoot } from "recoil";
+import { useRecoilState, RecoilRoot } from "recoil";
 import Item from "./Pages/Item";
 import BillOfMaterials from "./Pages/BillOfMaterials";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { styled } from "@mui/material/styles";
+import { viewState } from "./Atom/viewState";
 
 const VisuallyHiddenInput = styled("input")({
   clip: "rect(0 0 0 0)",
@@ -16,11 +17,6 @@ const VisuallyHiddenInput = styled("input")({
   left: 0,
   whiteSpace: "nowrap",
   width: 1,
-});
-// Define Recoil atom outside the component
-const viewState = atom({
-  key: "viewState",
-  default: true, // Default to showing the Item table
 });
 
 // Sample JSON data
