@@ -5,6 +5,7 @@ import { useRecoilState, useRecoilValue, useSetRecoilState } from "recoil";
 import { viewState } from "../Atom/viewState";
 import { rowDataState } from "../Atom/rowDataState";
 import { rowDataStateBOM } from "../Atom/rowDataStateBOM";
+import { toast } from "react-toastify";
 
 const TableComponent = ({ data, onDelete }) => {
   const isItem = useRecoilValue(viewState);
@@ -45,6 +46,8 @@ const TableComponent = ({ data, onDelete }) => {
     const rowToDelete = rows[index];
     if (!rowToDelete || !rowToDelete.id) {
       console.error("Row or ID not found.");
+      toast.error("Row or ID not found.");
+
       return;
     }
 
@@ -57,18 +60,19 @@ const TableComponent = ({ data, onDelete }) => {
         },
       }
     );
-
+    const data = await response.json();
     if (!response.ok) {
       console.error("Error deleting the row:", response.statusText);
+      toast.error(data.message);
       return;
     }
 
-    const data = await response.json();
     console.log("Delete response:", data);
 
     // Update the local state by removing the deleted row
     const updatedRows = rows.filter((_, rowIndex) => rowIndex !== index);
     setRows(updatedRows);
+    toast.success("Row deleted successfully.");
 
     if (onDelete) {
       onDelete(updatedRows);

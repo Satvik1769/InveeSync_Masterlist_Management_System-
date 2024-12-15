@@ -14,6 +14,7 @@ import Modal from "@mui/material/Modal";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
 import * as XLSX from "xlsx";
+import { toast } from "react-toastify";
 
 const modalStyle = {
   position: "absolute",
@@ -78,13 +79,16 @@ const App = () => {
           );
           if (!response.ok) {
             console.error(`Failed to update row with ID ${row.id}`);
+            toast.error(`Failed to update row with ID ${row.id}`);
           }
         })
       );
       console.log("All changes saved successfully.");
       originalData.current = [...rows]; // Update original data after successful save
+      toast.success("All changes saved successfully.");
     } catch (error) {
       console.error("Error saving changes:", error);
+      toast.error("Error saving changes.", error);
     }
   };
 
@@ -105,13 +109,16 @@ const App = () => {
           );
           if (!response.ok) {
             console.error(`Failed to update row with ID ${row.id}`);
+            toast.error(`Failed to update row with ID ${row.id}`);
           }
         })
       );
       console.log("All changes saved successfully.");
       originalData.current = [...rows]; // Update original data after successful save
+      toast.success("All changes saved successfully.");
     } catch (error) {
       console.error("Error saving changes:", error);
+      toast.error("Error saving changes.", error);
     }
   };
 
@@ -167,16 +174,21 @@ const App = () => {
               // Check if values are valid numbers
               if (isNaN(minBuffer) || isNaN(maxBuffer)) {
                 setFileError("Buffer values must be valid numbers.");
+                toast.error("Buffer values must be valid numbers.");
                 return;
               }
 
               if (minBuffer < 0 || maxBuffer < 0) {
                 setFileError("Buffer values cannot be negative.");
+                toast.error("Buffer values cannot be negative.");
                 return;
               }
 
               if (maxBuffer < minBuffer) {
                 setFileError(
+                  "Max buffer should be greater than or equal to Min buffer."
+                );
+                toast.error(
                   "Max buffer should be greater than or equal to Min buffer."
                 );
                 return;
@@ -196,6 +208,9 @@ const App = () => {
                 setFileError(
                   `Duplicate entry found: The combination of internal_item_name '${row.internal_item_name}' and tenant_id '${row.tenant_id}' already exists.`
                 );
+                toast.error(
+                  `Duplicate entry found: The combination of internal_item_name '${row.internal_item_name}' and tenant_id '${row.tenant_id}' already exists.`
+                );
                 return;
               }
             }
@@ -204,6 +219,7 @@ const App = () => {
               // Check if tenant_id is a valid number
               if (isNaN(row.tenant_id)) {
                 setFileError("Tenant ID must be a valid number.");
+                toast.error("Tenant ID must be a valid number.", row.id);
                 return;
               }
             }
@@ -213,6 +229,7 @@ const App = () => {
             for (let row of parsedData) {
               if (row.quantity < 1 || row.quantity > 100) {
                 setFileError("Quantity should be between 1 and 100.");
+                toast.error("Quantity should be between 1 and 100.");
                 return;
               }
             }
@@ -230,9 +247,11 @@ const App = () => {
           console.log("Parsed data:", parsedData); // Log parsed data
 
           handleDataSave(parsedData);
+          toast.success("Data saved successfully.");
         } catch (error) {
           setFileError("Error parsing the file.");
           console.error("Error parsing the file:", error);
+          toast.error("Error parsing the file.", error);
         }
       };
       reader.readAsArrayBuffer(file);
@@ -316,14 +335,14 @@ const App = () => {
       if (isItem) {
         // Validation for Item Master
         if (!formData.internal_item_name || !formData.type || !formData.uom) {
-          alert("Please fill in all mandatory fields.");
+          toast.error("Please fill in all mandatory fields.");
           return;
         }
         if (
           formData.type === "sell" &&
           !formData.additional_attributes.scrap_type
         ) {
-          alert("Scrap type is mandatory for items with type 'sell'.");
+          toast.error("Scrap type is mandatory for items with type 'sell'.");
           return;
         }
 
@@ -335,7 +354,9 @@ const App = () => {
           formData.max_buffer = 0;
         }
         if (formData.max_buffer < formData.min_buffer) {
-          alert("Max buffer should be greater than or equal to Min buffer.");
+          toast.error(
+            "Max buffer should be greater than or equal to Min buffer."
+          );
           return;
         }
         const generateId = () => Math.floor(Math.random() * 10000);
@@ -355,7 +376,7 @@ const App = () => {
         );
 
         if (!response.ok) {
-          alert("Failed to add item.");
+          toast.error("Failed to add item.");
           return;
         }
 
@@ -367,17 +388,17 @@ const App = () => {
         // Update rows with the correct id
         setRows((prev) => [...prev, { ...formData }]);
 
-        alert("Item added successfully.");
+        toast.success("Item added successfully.");
         handleClose();
       } else {
         // Validation for BoM
         if (!formData.item_id || !formData.component_id || !formData.quantity) {
-          alert("Please fill in all mandatory fields.");
+          toast.error("Please fill in all mandatory fields.");
           return;
         }
 
         if (formData.quantity < 1 || formData.quantity > 100) {
-          alert("Quantity should be between 1 and 100.");
+          toast.error("Quantity should be between 1 and 100.");
           return;
         }
 
@@ -397,7 +418,7 @@ const App = () => {
         );
 
         if (!response.ok) {
-          alert("Failed to add BoM.");
+          toast.error("Failed to add BoM.");
           return;
         }
 
@@ -409,12 +430,12 @@ const App = () => {
         // Update rows with the correct id
         setRows((prev) => [...prev, { ...formData }]);
 
-        alert("BoM added successfully.");
+        toast.success("BoM added successfully.");
         handleClose();
       }
     } catch (error) {
       console.error("Error saving data:", error);
-      alert("An error occurred while saving. Please try again.");
+      toast.error("An error occurred while saving. Please try again.");
     }
   };
 
