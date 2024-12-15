@@ -1,19 +1,32 @@
 import React, { useState } from "react";
 import IconButton from "@mui/material/IconButton";
 import DeleteIcon from "@mui/icons-material/Delete";
-import { useRecoilState } from "recoil";
+import { useRecoilState, useRecoilValue, useSetRecoilState } from "recoil";
 import { viewState } from "../Atom/viewState";
+import { rowDataState } from "../Atom/rowDataState";
+import { rowDataStateBOM } from "../Atom/rowDataStateBOM";
 
 const TableComponent = ({ data, onDelete }) => {
-  const [rows, setRows] = useState(Array.isArray(data) ? data : [data]);
+  const isItem = useRecoilValue(viewState);
+  const rowsState = isItem ? rowDataState : rowDataStateBOM;
+  const rows = useRecoilValue(rowsState);
+  const setRows = useSetRecoilState(rowsState);
+
+  // Use Recoil for rows state
+
   const [editingCell, setEditingCell] = useState(null);
+
+  // Update rows initially if data is passed
+  React.useEffect(() => {
+    if (Array.isArray(data)) {
+      setRows(data);
+    }
+  }, [data, setRows]);
 
   const headers =
     rows.length > 0
       ? Object.keys(rows[0]).filter((key) => key !== "additional_attributes")
       : [];
-
-  const [isItem, setItem] = useRecoilState(viewState);
 
   const additionalHeaders = isItem
     ? [
@@ -26,37 +39,38 @@ const TableComponent = ({ data, onDelete }) => {
     : [];
 
   const handleDelete = (index) => {
-    // Remove the row at the specified index
     const updatedRows = rows.filter((_, rowIndex) => rowIndex !== index);
-
-    // If there are no rows left after deletion, we set rows to an empty array
-    if (updatedRows.length === 0) {
-      setRows([]);
-    } else {
-      setRows(updatedRows);
-    }
-
-    // Optionally, call onDelete if you want to pass the updated data to a parent component
-    if (onDelete) {
-      onDelete(updatedRows);
-    }
+    setRows(updatedRows);
+    if (onDelete) onDelete(updatedRows);
   };
 
-  const handleCellClick = (rowIndex, columnIndex) => {
-    setEditingCell({ rowIndex, columnIndex });
+  const handleCellClick = (rowIndex, columnIndex, isAdditional = false) => {
+    setEditingCell({ rowIndex, columnIndex, isAdditional });
   };
 
   const handleCellBlur = () => {
     setEditingCell(null);
   };
 
-  const updateCellValue = (rowIndex, columnIndex, newValue) => {
+  const updateCellValue = (rowIndex, columnIndex, newValue, isAdditional) => {
     setRows((prevRows) => {
       const updatedRows = [...prevRows];
-      updatedRows[rowIndex] = {
-        ...updatedRows[rowIndex],
-        [headers[columnIndex]]: newValue,
-      };
+      if (isAdditional) {
+        // Update additional_attributes
+        updatedRows[rowIndex] = {
+          ...updatedRows[rowIndex],
+          additional_attributes: {
+            ...updatedRows[rowIndex].additional_attributes,
+            [additionalHeaders[columnIndex]]: newValue,
+          },
+        };
+      } else {
+        // Update regular cell
+        updatedRows[rowIndex] = {
+          ...updatedRows[rowIndex],
+          [headers[columnIndex]]: newValue,
+        };
+      }
       return updatedRows;
     });
   };
@@ -66,20 +80,14 @@ const TableComponent = ({ data, onDelete }) => {
       <table className="min-w-full border border-collapse border-gray-300">
         <thead>
           <tr>
-            {headers.length > 0 ? (
-              headers.map((header) => (
-                <th
-                  key={header}
-                  className="px-4 py-2 text-left text-gray-700 uppercase"
-                >
-                  {header.replace(/_/g, " ").toUpperCase()}
-                </th>
-              ))
-            ) : (
-              <th className="px-4 py-2 text-left text-gray-700 uppercase">
-                No data
+            {headers.map((header) => (
+              <th
+                key={header}
+                className="px-4 py-2 text-left text-gray-700 uppercase"
+              >
+                {header.replace(/_/g, " ").toUpperCase()}
               </th>
-            )}
+            ))}
             {additionalHeaders.map((header, idx) => (
               <th
                 key={idx}
@@ -110,19 +118,27 @@ const TableComponent = ({ data, onDelete }) => {
                 {headers.map((header, columnIndex) => (
                   <td key={header} className="px-4 py-2 border-t">
                     {editingCell?.rowIndex === rowIndex &&
-                    editingCell?.columnIndex === columnIndex ? (
+                    editingCell?.columnIndex === columnIndex &&
+                    !editingCell?.isAdditional ? (
                       <input
                         type="text"
                         value={row[header] || ""}
                         onChange={(e) =>
-                          updateCellValue(rowIndex, columnIndex, e.target.value)
+                          updateCellValue(
+                            rowIndex,
+                            columnIndex,
+                            e.target.value,
+                            false
+                          )
                         }
                         onBlur={handleCellBlur}
                         className="w-full"
                       />
                     ) : (
                       <span
-                        onClick={() => handleCellClick(rowIndex, columnIndex)}
+                        onClick={() =>
+                          handleCellClick(rowIndex, columnIndex, false)
+                        }
                       >
                         {row[header] || "N/A"}
                       </span>
@@ -131,13 +147,33 @@ const TableComponent = ({ data, onDelete }) => {
                 ))}
 
                 {/* Render Additional Attributes */}
-                {additionalHeaders.map((attrKey, idx) => (
-                  <td key={idx} className="px-4 py-2 border-t">
-                    {row.additional_attributes &&
-                    row.additional_attributes[attrKey] !== undefined ? (
-                      <span>{String(row.additional_attributes[attrKey])}</span>
+                {additionalHeaders.map((attrKey, columnIndex) => (
+                  <td key={attrKey} className="px-4 py-2 border-t">
+                    {editingCell?.rowIndex === rowIndex &&
+                    editingCell?.columnIndex === columnIndex &&
+                    editingCell?.isAdditional ? (
+                      <input
+                        type="text"
+                        value={row.additional_attributes?.[attrKey] || ""}
+                        onChange={(e) =>
+                          updateCellValue(
+                            rowIndex,
+                            columnIndex,
+                            e.target.value,
+                            true
+                          )
+                        }
+                        onBlur={handleCellBlur}
+                        className="w-full"
+                      />
                     ) : (
-                      <span>N/A</span>
+                      <span
+                        onClick={() =>
+                          handleCellClick(rowIndex, columnIndex, true)
+                        }
+                      >
+                        {row.additional_attributes?.[attrKey] || "N/A"}
+                      </span>
                     )}
                   </td>
                 ))}
