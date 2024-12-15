@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Button from "@mui/material/Button";
-import { useRecoilState, useRecoilValue, useSetRecoilState } from "recoil";
+import { useRecoilValue, useSetRecoilState } from "recoil";
 import Item from "./Pages/Item";
 import BillOfMaterials from "./Pages/BillOfMaterials";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
@@ -13,6 +13,7 @@ import Typography from "@mui/material/Typography";
 import Modal from "@mui/material/Modal";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
+import * as XLSX from "xlsx";
 
 const modalStyle = {
   position: "absolute",
@@ -45,6 +46,198 @@ const App = () => {
   const rows = useRecoilValue(rowsState);
   const setRows = useSetRecoilState(rowsState);
   const type = isItem ? "items" : "bom";
+
+  const [data, setData] = useState([]);
+  const [fileError, setFileError] = useState("");
+
+  const handleBatchSave = async () => {
+    const modifiedRows = rows.filter((row, index) => {
+      const originalRow = originalData.current[index];
+      return JSON.stringify(row) !== JSON.stringify(originalRow);
+    });
+
+    if (modifiedRows.length === 0) {
+      console.log("No changes to save.");
+      return;
+    }
+
+    console.log("Modified rows:", modifiedRows);
+
+    try {
+      await Promise.all(
+        modifiedRows.map(async (row) => {
+          const response = await fetch(
+            `https://api-assignment.inveesync.in/${type}/${row.id}`,
+            {
+              method: "PUT",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(row),
+            }
+          );
+          if (!response.ok) {
+            console.error(`Failed to update row with ID ${row.id}`);
+          }
+        })
+      );
+      console.log("All changes saved successfully.");
+      originalData.current = [...rows]; // Update original data after successful save
+    } catch (error) {
+      console.error("Error saving changes:", error);
+    }
+  };
+
+  const handleDataSave = async (parsedRows) => {
+    const type = isItem ? "items" : "bom";
+    try {
+      await Promise.all(
+        parsedRows.map(async (row) => {
+          const response = await fetch(
+            `https://api-assignment.inveesync.in/${type}`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify(row),
+            }
+          );
+          if (!response.ok) {
+            console.error(`Failed to update row with ID ${row.id}`);
+          }
+        })
+      );
+      console.log("All changes saved successfully.");
+      originalData.current = [...rows]; // Update original data after successful save
+    } catch (error) {
+      console.error("Error saving changes:", error);
+    }
+  };
+
+  // Handle file upload
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      if (
+        file.type !==
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      ) {
+        setFileError("Please upload a valid Excel file.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          // Parse the Excel file
+          const workbook = XLSX.read(e.target.result, { type: "array" });
+          const sheetName = workbook.SheetNames[0]; // Get first sheet
+          const sheet = workbook.Sheets[sheetName];
+          const parsedData = XLSX.utils.sheet_to_json(sheet);
+
+          // Validation for the parsed data
+          if (!parsedData || parsedData.length === 0) {
+            setFileError("The Excel file is empty.");
+            return;
+          }
+
+          // Determine if file is for Item or BoM and set required columns accordingly
+          const requiredColumns = isItem
+            ? ["id", "internal_item_name", "type", "uom"]
+            : ["item_id", "component_id", "quantity"];
+
+          // Validate that required columns are present
+          for (let row of parsedData) {
+            for (let col of requiredColumns) {
+              if (!row[col]) {
+                setFileError(`Missing value in column: ${col}`);
+                return;
+              }
+            }
+          }
+
+          // Validation for quantity: should be between 1 and 100 (only for BoM)
+          if (isItem) {
+            for (let row of parsedData) {
+              // Convert min_buffer and max_buffer to numbers
+              const minBuffer = parseFloat(row.min_buffer);
+              const maxBuffer = parseFloat(row.max_buffer);
+
+              // Check if values are valid numbers
+              if (isNaN(minBuffer) || isNaN(maxBuffer)) {
+                setFileError("Buffer values must be valid numbers.");
+                return;
+              }
+
+              if (minBuffer < 0 || maxBuffer < 0) {
+                setFileError("Buffer values cannot be negative.");
+                return;
+              }
+
+              if (maxBuffer < minBuffer) {
+                setFileError(
+                  "Max buffer should be greater than or equal to Min buffer."
+                );
+                return;
+              }
+            }
+
+            for (let row of parsedData) {
+              // Check if the combination of internal_item_name and tenant_id already exists in the data
+              const existingItem = rows.find((existingRow) => {
+                return (
+                  existingRow.internal_item_name === row.internal_item_name &&
+                  existingRow.tenant_id === row.tenant_id
+                );
+              });
+
+              if (existingItem) {
+                setFileError(
+                  `Duplicate entry found: The combination of internal_item_name '${row.internal_item_name}' and tenant_id '${row.tenant_id}' already exists.`
+                );
+                return;
+              }
+            }
+
+            for (let row of parsedData) {
+              // Check if tenant_id is a valid number
+              if (isNaN(row.tenant_id)) {
+                setFileError("Tenant ID must be a valid number.");
+                return;
+              }
+            }
+          }
+
+          if (!isItem) {
+            for (let row of parsedData) {
+              if (row.quantity < 1 || row.quantity > 100) {
+                setFileError("Quantity should be between 1 and 100.");
+                return;
+              }
+            }
+          }
+
+          // Now set data and rows
+          setData(parsedData); // Set the parsed data to state
+          setRows((prevRows) => {
+            const newRows = [...prevRows, ...parsedData]; // Append new rows to previous state
+            console.log("Rows (after setting):", newRows); // Log the updated rows state
+            return newRows; // Return the new rows to update the state
+          });
+
+          setFileError(""); // Clear any file error
+          console.log("Parsed data:", parsedData); // Log parsed data
+
+          handleDataSave(parsedData);
+        } catch (error) {
+          setFileError("Error parsing the file.");
+          console.error("Error parsing the file:", error);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    }
+  };
 
   useEffect(() => {
     const handleStorageChange = (event) => {
@@ -228,44 +421,6 @@ const App = () => {
   // Mock original data for comparison
   const originalData = React.useRef([...rows]);
 
-  const handleBatchSave = async () => {
-    const modifiedRows = rows.filter((row, index) => {
-      const originalRow = originalData.current[index];
-      return JSON.stringify(row) !== JSON.stringify(originalRow);
-    });
-
-    if (modifiedRows.length === 0) {
-      console.log("No changes to save.");
-      return;
-    }
-
-    console.log("Modified rows:", modifiedRows);
-
-    try {
-      await Promise.all(
-        modifiedRows.map(async (row) => {
-          const response = await fetch(
-            `https://api-assignment.inveesync.in/${type}/${row.id}`,
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(row),
-            }
-          );
-          if (!response.ok) {
-            console.error(`Failed to update row with ID ${row.id}`);
-          }
-        })
-      );
-      console.log("All changes saved successfully.");
-      originalData.current = [...rows];
-    } catch (error) {
-      console.error("Error saving changes:", error);
-    }
-  };
-
   return (
     <div className="">
       <div className="my-2 mx-2">
@@ -312,8 +467,9 @@ const App = () => {
           Upload files
           <VisuallyHiddenInput
             type="file"
-            onChange={(event) => console.log(event.target.files)}
+            onChange={handleFileUpload}
             multiple
+            accept=".xlsx"
           />
         </Button>
       </div>
