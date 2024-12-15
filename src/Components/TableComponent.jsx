@@ -38,10 +38,41 @@ const TableComponent = ({ data, onDelete }) => {
       ]
     : [];
 
-  const handleDelete = (index) => {
+  const handleDelete = async (index) => {
+    const type = isItem ? "items" : "bom";
+
+    // Get the ID of the row to be deleted
+    const rowToDelete = rows[index];
+    if (!rowToDelete || !rowToDelete.id) {
+      console.error("Row or ID not found.");
+      return;
+    }
+
+    const response = await fetch(
+      `https://api-assignment.inveesync.in/${type}/${rowToDelete.id}`, // Use the unique ID
+      {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    if (!response.ok) {
+      console.error("Error deleting the row:", response.statusText);
+      return;
+    }
+
+    const data = await response.json();
+    console.log("Delete response:", data);
+
+    // Update the local state by removing the deleted row
     const updatedRows = rows.filter((_, rowIndex) => rowIndex !== index);
     setRows(updatedRows);
-    if (onDelete) onDelete(updatedRows);
+
+    if (onDelete) {
+      onDelete(updatedRows);
+    }
   };
 
   const handleCellClick = (rowIndex, columnIndex, isAdditional = false) => {
@@ -140,7 +171,7 @@ const TableComponent = ({ data, onDelete }) => {
                           handleCellClick(rowIndex, columnIndex, false)
                         }
                       >
-                        {row[header] || "N/A"}
+                        {row[header] ?? "N/A"}
                       </span>
                     )}
                   </td>
@@ -172,7 +203,7 @@ const TableComponent = ({ data, onDelete }) => {
                           handleCellClick(rowIndex, columnIndex, true)
                         }
                       >
-                        {row.additional_attributes?.[attrKey] || "N/A"}
+                        {row.additional_attributes?.[attrKey] ?? "N/A"}
                       </span>
                     )}
                   </td>
