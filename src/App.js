@@ -478,14 +478,22 @@ const App = () => {
 
       <div className="my-2 mx-2">
         <Button
-          sx={{ marginRight: "10px", backgroundColor: "green" }}
+          sx={{
+            marginRight: "10px",
+            backgroundColor: "green",
+            marginBottom: "10px",
+          }}
           variant="contained"
           onClick={handleOpen}
         >
           Add
         </Button>
         <Button
-          sx={{ backgroundColor: "orangered", marginRight: "10px" }}
+          sx={{
+            backgroundColor: "orangered",
+            marginRight: "10px",
+            marginBottom: "10px",
+          }}
           variant="contained"
           onClick={handleBatchSave}
         >
@@ -493,7 +501,11 @@ const App = () => {
         </Button>
 
         <Button
-          sx={{ backgroundColor: "red", marginRight: "10px" }}
+          sx={{
+            backgroundColor: "red",
+            marginRight: "10px",
+            marginBottom: "10px",
+          }}
           variant="contained"
           onClick={handleDownloadXLSX}
         >
@@ -665,7 +677,11 @@ const App = () => {
         </Box>
       </Modal>
 
-      {isItem ? <div>Item Table </div> : <div>Bill of Materials Table </div>}
+      {isItem ? (
+        <div className="text-xl mx-4 my-4">Item Table </div>
+      ) : (
+        <div className="text-xl mx-4 my-4">Bill of Materials Table </div>
+      )}
 
       {isItem ? (
         <Item disableSorting={true} />
