@@ -121,7 +121,68 @@ const App = () => {
       toast.error("Error saving changes.", error);
     }
   };
+  const [errorLog, setErrorLog] = useState([]);
 
+  const validateRow = (row, index) => {
+    const errors = [];
+
+    // Check for duplicate entries based on internal_item_name and tenant_id
+    const existingItem = rows.find(
+      (existingRow) =>
+        existingRow.internal_item_name === row.internal_item_name ||
+        existingRow.tenant_id === row.tenant_id
+    );
+    if (existingItem) {
+      errors.push(
+        `Duplicate entry: internal_item_name '${row.internal_item_name}' and tenant_id '${row.tenant_id}' already exist.`
+      );
+    }
+
+    // Min/Max Buffer Validation (Only for "isItem" rows)
+    if (isItem) {
+      const minBuffer = parseFloat(row.min_buffer);
+      const maxBuffer = parseFloat(row.max_buffer);
+
+      if (isNaN(minBuffer) || isNaN(maxBuffer)) {
+        errors.push("Buffer values must be valid numbers.");
+      } else if (minBuffer < 0 || maxBuffer < 0) {
+        errors.push("Buffer values cannot be negative.");
+      } else if (minBuffer > maxBuffer) {
+        errors.push(
+          "Max buffer should be greater than or equal to Min buffer."
+        );
+      }
+    }
+
+    // Check for missing tenant_id or other required fields
+    if (isNaN(row.tenant_id)) {
+      errors.push("Tenant ID must be a valid number.");
+    }
+
+    return errors.length > 0 ? { index, errors } : null;
+  };
+
+  const validateRowBOM = (row, index) => {
+    const errors = [];
+    console.log(row);
+    const item_id = parseInt(row.item_id);
+    const component_id = parseInt(row.component_id);
+    const id = parseInt(row.id);
+    // Check for duplicate entries based on internal_item_name and tenant_id
+    const existingItem = rows.find(
+      (existingRow) =>
+        (existingRow.item_id === item_id &&
+          existingRow.component_id === component_id) ||
+        existingRow.id === id
+    );
+    if (existingItem) {
+      errors.push(
+        `Duplicate entry: item_id '${row.item_id}' and component_id '${row.component_id}' already exist.`
+      );
+    }
+
+    return errors.length > 0 ? { index, errors } : null;
+  };
   // Handle file upload
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
@@ -149,105 +210,46 @@ const App = () => {
             return;
           }
 
-          // Determine if file is for Item or BoM and set required columns accordingly
-          const requiredColumns = isItem
-            ? ["id", "internal_item_name", "type", "uom"]
-            : ["item_id", "component_id", "quantity"];
+          // Clear previous errors
+          setErrorLog([]);
 
-          // Validate that required columns are present
-          for (let row of parsedData) {
-            for (let col of requiredColumns) {
-              if (!row[col]) {
-                setFileError(`Missing value in column: ${col}`);
-                return;
+          // Validate each row
+          const newErrors = [];
+          parsedData.forEach((row, index) => {
+            if (isItem) {
+              const error = validateRow(row, index + 1); // index+1 for user-friendly row numbers
+
+              if (error) {
+                newErrors.push(error);
+              }
+            } else {
+              const error = validateRowBOM(row, index + 1); // index+1 for user-friendly
+              if (error) {
+                newErrors.push(error);
               }
             }
-          }
-
-          // Validation for quantity: should be between 1 and 100 (only for BoM)
-          if (isItem) {
-            for (let row of parsedData) {
-              // Convert min_buffer and max_buffer to numbers
-              const minBuffer = parseFloat(row.min_buffer);
-              const maxBuffer = parseFloat(row.max_buffer);
-
-              // Check if values are valid numbers
-              if (isNaN(minBuffer) || isNaN(maxBuffer)) {
-                setFileError("Buffer values must be valid numbers.");
-                toast.error("Buffer values must be valid numbers.");
-                return;
-              }
-
-              if (minBuffer < 0 || maxBuffer < 0) {
-                setFileError("Buffer values cannot be negative.");
-                toast.error("Buffer values cannot be negative.");
-                return;
-              }
-
-              if (maxBuffer < minBuffer) {
-                setFileError(
-                  "Max buffer should be greater than or equal to Min buffer."
-                );
-                toast.error(
-                  "Max buffer should be greater than or equal to Min buffer."
-                );
-                return;
-              }
-            }
-
-            for (let row of parsedData) {
-              // Check if the combination of internal_item_name and tenant_id already exists in the data
-              const existingItem = rows.find((existingRow) => {
-                return (
-                  existingRow.internal_item_name === row.internal_item_name &&
-                  existingRow.tenant_id === row.tenant_id
-                );
-              });
-
-              if (existingItem) {
-                setFileError(
-                  `Duplicate entry found: The combination of internal_item_name '${row.internal_item_name}' and tenant_id '${row.tenant_id}' already exists.`
-                );
-                toast.error(
-                  `Duplicate entry found: The combination of internal_item_name '${row.internal_item_name}' and tenant_id '${row.tenant_id}' already exists.`
-                );
-                return;
-              }
-            }
-
-            for (let row of parsedData) {
-              // Check if tenant_id is a valid number
-              if (isNaN(row.tenant_id)) {
-                setFileError("Tenant ID must be a valid number.");
-                toast.error("Tenant ID must be a valid number.", row.id);
-                return;
-              }
-            }
-          }
-
-          if (!isItem) {
-            for (let row of parsedData) {
-              if (row.quantity < 1 || row.quantity > 100) {
-                setFileError("Quantity should be between 1 and 100.");
-                toast.error("Quantity should be between 1 and 100.");
-                return;
-              }
-            }
-          }
-
-          // Now set data and rows
-          setData(parsedData); // Set the parsed data to state
-          setRows((prevRows) => {
-            const newRows = [...prevRows, ...parsedData]; // Append new rows to previous state
-            console.log("Rows (after setting):", newRows); // Log the updated rows state
-            return newRows; // Return the new rows to update the state
           });
 
-          setFileError(""); // Clear any file error
-          console.log("Parsed data:", parsedData); // Log parsed data
+          if (newErrors.length > 0) {
+            setErrorLog(newErrors);
+            setFileError(
+              "File uploaded with errors. Check the log for details."
+            );
+            toast.error("File uploaded with errors.");
+            return;
+          }
 
+          // If no errors, proceed to save data
+          setData(parsedData);
+          setRows((prevRows) => {
+            const newRows = [...prevRows, ...parsedData]; // Append new rows to previous state
+            return newRows; // Update state with new rows
+          });
+
+          // Proceed with saving data
           handleDataSave(parsedData);
           toast.success("Data saved successfully.");
+          setFileError(""); // Clear any file error
         } catch (error) {
           setFileError("Error parsing the file.");
           console.error("Error parsing the file:", error);
@@ -453,6 +455,17 @@ const App = () => {
     toast.success("Data downloaded successfully!");
   };
 
+  const downloadErrorLogs = () => {
+    const errorText = errorLog
+      .map((err) => `Row ${err.index}: ${err.errors.join(", ")}\n`)
+      .join("");
+    const blob = new Blob([errorText], { type: "text/plain" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "error_log.txt";
+    link.click();
+  };
+
   // Mock original data for comparison
   const originalData = React.useRef([...rows]);
 
@@ -526,6 +539,18 @@ const App = () => {
             multiple
             accept=".xlsx"
           />
+        </Button>
+
+        <Button
+          sx={{
+            marginBottom: "10px",
+            marginLeft: "10px",
+            backgroundColor: "red",
+          }}
+          variant="contained"
+          onClick={downloadErrorLogs}
+        >
+          Logs
         </Button>
       </div>
 
