@@ -439,6 +439,20 @@ const App = () => {
     }
   };
 
+  const handleDownloadXLSX = () => {
+    const formattedData = rows.map((row) => ({
+      ...row,
+      ...row.additional_attributes, // Flatten additional attributes
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(formattedData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Data");
+
+    XLSX.writeFile(workbook, "data.xlsx");
+    toast.success("Data downloaded successfully!");
+  };
+
   // Mock original data for comparison
   const originalData = React.useRef([...rows]);
 
@@ -479,6 +493,14 @@ const App = () => {
         </Button>
 
         <Button
+          sx={{ backgroundColor: "red", marginRight: "10px" }}
+          variant="contained"
+          onClick={handleDownloadXLSX}
+        >
+          Download File
+        </Button>
+
+        <Button
           component="label"
           role={undefined}
           variant="contained"
@@ -510,6 +532,7 @@ const App = () => {
                 onChange={handleInputChange}
                 fullWidth
                 margin="normal"
+                required
               />
               <TextField
                 label="Item Description"
@@ -518,6 +541,7 @@ const App = () => {
                 onChange={handleInputChange}
                 fullWidth
                 margin="normal"
+                required
               />
               <TextField
                 label="Customer Name"
@@ -537,7 +561,6 @@ const App = () => {
                 margin="normal"
                 select // This makes the TextField a dropdown
               >
-                {/* Dropdown Options */}
                 <MenuItem value={"FALSE"}>False</MenuItem>
                 <MenuItem value={"TRUE"}>True</MenuItem>
               </TextField>
@@ -549,6 +572,7 @@ const App = () => {
                 onChange={handleInputChange}
                 fullWidth
                 margin="normal"
+                required
                 select
               >
                 <MenuItem value="sell">Sell</MenuItem>
@@ -562,6 +586,7 @@ const App = () => {
                 onChange={handleInputChange}
                 fullWidth
                 margin="normal"
+                required
                 select
               >
                 <MenuItem value="kgs">Kgs</MenuItem>
@@ -599,29 +624,32 @@ const App = () => {
           ) : (
             <>
               <TextField
-                label="Item ID"
+                label="Item ID "
                 name="item_id"
                 value={formData.item_id}
                 onChange={handleInputChange}
                 fullWidth
                 margin="normal"
+                required
               />
               <TextField
-                label="Component ID"
+                label="Component ID "
                 name="component_id"
                 value={formData.component_id}
                 onChange={handleInputChange}
                 fullWidth
                 margin="normal"
+                required
               />
               <TextField
-                label="Quantity"
+                label="Quantity "
                 name="quantity"
                 type="number"
                 value={formData.quantity}
                 onChange={handleInputChange}
                 fullWidth
                 margin="normal"
+                required
               />
             </>
           )}

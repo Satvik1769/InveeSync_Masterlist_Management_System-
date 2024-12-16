@@ -90,22 +90,46 @@ const TableComponent = ({ data, onDelete }) => {
   const updateCellValue = (rowIndex, columnIndex, newValue, isAdditional) => {
     setRows((prevRows) => {
       const updatedRows = [...prevRows];
-      if (isAdditional) {
-        // Update additional_attributes
-        updatedRows[rowIndex] = {
-          ...updatedRows[rowIndex],
-          additional_attributes: {
-            ...updatedRows[rowIndex].additional_attributes,
-            [additionalHeaders[columnIndex]]: newValue,
-          },
-        };
-      } else {
-        // Update regular cell
-        updatedRows[rowIndex] = {
-          ...updatedRows[rowIndex],
-          [headers[columnIndex]]: newValue,
-        };
+      const rowToUpdate = updatedRows[rowIndex];
+
+      // Determine the key being updated
+      const key = isAdditional
+        ? additionalHeaders[columnIndex]
+        : headers[columnIndex];
+
+      // Clone the row for modifications
+      const updatedRow = isAdditional
+        ? {
+            ...rowToUpdate,
+            additional_attributes: {
+              ...rowToUpdate.additional_attributes,
+              [key]: newValue,
+            },
+          }
+        : {
+            ...rowToUpdate,
+            [key]: newValue,
+          };
+
+      // Perform validations
+      const minBuffer = parseFloat(updatedRow.min_buffer || 0);
+      const maxBuffer = parseFloat(updatedRow.max_buffer || 0);
+
+      if (key === "min_buffer" || key === "max_buffer") {
+        if (minBuffer < 0 || maxBuffer < 0) {
+          toast.error("Buffer values must be greater than 0.");
+          return prevRows; // Discard changes
+        }
+
+        if (minBuffer >= maxBuffer) {
+          toast.error("Min Buffer must be less than Max Buffer.");
+          return prevRows; // Discard changes
+        }
       }
+
+      // Add any additional validations here as needed
+
+      updatedRows[rowIndex] = updatedRow;
       return updatedRows;
     });
   };
