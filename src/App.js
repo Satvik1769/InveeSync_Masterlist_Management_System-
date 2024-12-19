@@ -160,13 +160,30 @@ const App = () => {
         existingRow.tenant_id === row.tenant_id
     );
     const isSellnotValid =
-      row.type === "sell" && !row.additional_attributes_scrap_type;
+      row.type === "sell" &&
+      (!row.additional_attributes_scrap_type ||
+        row.additional_attributes_scrap_type.trim() === "");
+
+    const isUoMValid = ["kgs", "nos"].includes(row.uom);
+
+    const isAverageWeightNeededValid = ["TRUE", "FALSE"].includes(
+      row.additional_attributes_avg_weight_needed
+    );
+
+    if (!isAverageWeightNeededValid) {
+      errors.push("Invalid Avg Weight Needed must be boolean");
+    }
 
     if (existingItem) {
       errors.push(
         `Duplicate entry: internal_item_name '${row.internal_item_name}' and tenant_id '${row.tenant_id}' already exist.`
       );
     }
+
+    if (!isUoMValid) {
+      errors.push(`Invalid UOM: ${row.uom}`);
+    }
+
     if (isSellnotValid) {
       errors.push(`Scrap type is mandatory for items with type 'sell'.`);
     }
