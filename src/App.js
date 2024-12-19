@@ -159,10 +159,16 @@ const App = () => {
         existingRow.internal_item_name === row.internal_item_name ||
         existingRow.tenant_id === row.tenant_id
     );
+    const isSellnotValid =
+      row.type === "sell" && !row.additional_attributes_scrap_type;
+
     if (existingItem) {
       errors.push(
         `Duplicate entry: internal_item_name '${row.internal_item_name}' and tenant_id '${row.tenant_id}' already exist.`
       );
+    }
+    if (isSellnotValid) {
+      errors.push(`Scrap type is mandatory for items with type 'sell'.`);
     }
 
     // Min/Max Buffer Validation (Only for "isItem" rows)
