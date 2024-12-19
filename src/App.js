@@ -164,14 +164,28 @@ const App = () => {
       (!row.additional_attributes_scrap_type ||
         row.additional_attributes_scrap_type.trim() === "");
 
+    const isType = ["sell", "purchase", "component"].includes(row.type);
     const isUoMValid = ["kgs", "nos"].includes(row.uom);
+    const isInternalNameValid =
+      row.internal_item_name !== undefined &&
+      row.internal_item_name !== null &&
+      row.internal_item_name.trim() !== "";
 
+    console.log(row);
+    console.log(isInternalNameValid);
     const isAverageWeightNeededValid = ["TRUE", "FALSE"].includes(
       row.additional_attributes_avg_weight_needed
     );
 
+    if (!isInternalNameValid) {
+      errors.push("Invalid Internal Item Name");
+    }
+
     if (!isAverageWeightNeededValid) {
       errors.push("Invalid Avg Weight Needed must be boolean");
+    }
+    if (!isType) {
+      errors.push("Invalid type. Must be 'sell', 'purchase', or 'component'.");
     }
 
     if (existingItem) {
