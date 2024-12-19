@@ -171,8 +171,31 @@ const App = () => {
       row.internal_item_name !== null &&
       row.internal_item_name.trim() !== "";
 
-    console.log(row);
-    console.log(isInternalNameValid);
+    const isCreatedDateValid =
+      row.createdAt !== undefined &&
+      row.createdAt !== null &&
+      row.createdAt !== "invalid_date" &&
+      !isNaN(new Date(row.createdAt).getTime());
+
+    console.log(isNaN(new Date(row.createdAt).getTime()));
+
+    const isUpdatedDateValid =
+      row.updatedAt !== undefined &&
+      row.updatedAt !== null &&
+      row.updatedAt !== "invalid_date" &&
+      !isNaN(new Date(row.updatedAt).getTime());
+
+    const isTenantIdValid = !isNaN(row.tenant_id);
+
+    if (!isCreatedDateValid) {
+      errors.push("Invalid Created Date");
+    }
+    if (!isUpdatedDateValid) {
+      errors.push("Invalid Updated Date");
+    }
+    if (!isTenantIdValid) {
+      errors.push("Invalid Tenant ID");
+    }
     const isAverageWeightNeededValid = ["TRUE", "FALSE"].includes(
       row.additional_attributes_avg_weight_needed
     );
