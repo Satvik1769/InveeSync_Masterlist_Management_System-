@@ -21,7 +21,6 @@ export default function Item() {
           }
         );
         const data = await response.json();
-        console.log(data);
 
         // Update the Recoil state only once
         setRowData(data);

@@ -44,6 +44,7 @@ const App = () => {
   const isItem = useRecoilValue(viewState);
   const setViewState = useSetRecoilState(viewState);
   const rowsState = isItem ? rowDataState : rowDataStateBOM;
+  const rowsItem = useRecoilValue(rowDataState);
   const rows = useRecoilValue(rowsState);
   const setRows = useSetRecoilState(rowsState);
   const type = isItem ? "items" : "bom";
@@ -249,6 +250,7 @@ const App = () => {
     const item_id = parseInt(row.item_id);
     const component_id = parseInt(row.component_id);
     const id = parseInt(row.id);
+
     // Check for duplicate entries based on internal_item_name and tenant_id
     const existingItem = rows.find(
       (existingRow) =>
@@ -257,7 +259,30 @@ const App = () => {
         existingRow.id === id
     );
 
-    console.log(rows);
+    const item = rowsItem.find((i) => i.id === item_id);
+    const component = rowsItem.find((i) => i.id === component_id);
+
+    // Test Case #1: Sell item cannot be a component in BOM
+    if (component && component.type === "sell") {
+      errors.push(
+        `BOM entry at index ${index} violates the rule: Sell item '${component.internal_item_name}' cannot be a component.`
+      );
+    }
+
+    // Test Case #2: Purchase item cannot be item_id in BOM
+    if (item && item.type === "purchase") {
+      errors.push(
+        `BOM entry at index ${index} violates the rule: Purchase item '${item.internal_item_name}' cannot be used as item_id.`
+      );
+    }
+
+    // Test Case #5: BOM cannot be created for items not created yet
+    if (!item) {
+      errors.push(
+        `BOM entry at index ${index} violates the rule: Item with ID '${rowsItem.item_id}' does not exist in the Item Master.`
+      );
+    }
+
     const isQuantityValid =
       !isNaN(row.quantity) && row.quantity > 0 && row.quantity < 101;
 
