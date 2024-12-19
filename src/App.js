@@ -94,33 +94,60 @@ const App = () => {
 
   const handleDataSave = async (parsedRows) => {
     const type = isItem ? "items" : "bom";
+    const results = []; // Collect success/failure results
+
     try {
+      // Process each row and collect results
       await Promise.all(
         parsedRows.map(async (row) => {
-          const response = await fetch(
-            `https://api-assignment.inveesync.in/${type}`,
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify(row),
+          try {
+            const response = await fetch(
+              `https://api-assignment.inveesync.in/${type}`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(row),
+              }
+            );
+
+            if (!response.ok) {
+              console.error(`Failed to update row with ID ${row.id}`);
+              toast.error(`Failed to update row with ID ${row.id}`);
+              results.push({ id: row.id, success: false }); // Record failure
+            } else {
+              results.push({ id: row.id, success: true }); // Record success
             }
-          );
-          if (!response.ok) {
-            console.error(`Failed to update row with ID ${row.id}`);
-            toast.error(`Failed to update row with ID ${row.id}`);
+          } catch (error) {
+            console.error(`Error processing row with ID ${row.id}:`, error);
+            toast.error(`Error processing row with ID ${row.id}`);
+            results.push({ id: row.id, success: false }); // Record failure
           }
         })
       );
-      console.log("All changes saved successfully.");
-      originalData.current = [...rows]; // Update original data after successful save
-      toast.success("All changes saved successfully.");
+
+      // Evaluate results after processing all rows
+      const allSuccessful = results.every((result) => result.success);
+      console.log(allSuccessful);
+
+      if (allSuccessful) {
+        console.log("All changes saved successfully.");
+        originalData.current = [...rows]; // Update original data after all saves are successful
+        toast.success("All changes saved successfully.");
+      } else {
+        console.warn("Some rows failed to save.");
+        toast.warn("Some rows failed to save. Please check errors.");
+      }
+
+      return allSuccessful;
     } catch (error) {
       console.error("Error saving changes:", error);
-      toast.error("Error saving changes.", error);
+      toast.error("Error saving changes: " + error.message);
+      return false; // Explicitly return false in case of an error
     }
   };
+
   const [errorLog, setErrorLog] = useState([]);
 
   const validateRow = (row, index) => {
@@ -183,8 +210,9 @@ const App = () => {
 
     return errors.length > 0 ? { index, errors } : null;
   };
+
   // Handle file upload
-  const handleFileUpload = (event) => {
+  const handleFileUpload = async (event) => {
     const file = event.target.files[0];
     if (file) {
       if (
@@ -196,7 +224,7 @@ const App = () => {
       }
 
       const reader = new FileReader();
-      reader.onload = (e) => {
+      reader.onload = async (e) => {
         try {
           // Parse the Excel file
           const workbook = XLSX.read(e.target.result, { type: "array" });
@@ -247,8 +275,10 @@ const App = () => {
           });
 
           // Proceed with saving data
-          handleDataSave(parsedData);
-          toast.success("Data saved successfully.");
+          const success = await handleDataSave(parsedData);
+          if (success) {
+            toast.success("Data saved successfully.");
+          }
           setFileError(""); // Clear any file error
         } catch (error) {
           setFileError("Error parsing the file.");
