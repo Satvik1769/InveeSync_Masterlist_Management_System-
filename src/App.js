@@ -83,7 +83,6 @@ const App = () => {
           }
         })
       );
-      console.log("All changes saved successfully.");
       originalData.current = [...rows]; // Update original data after successful save
       toast.success("All changes saved successfully.");
     } catch (error) {
@@ -129,10 +128,8 @@ const App = () => {
 
       // Evaluate results after processing all rows
       const allSuccessful = results.every((result) => result.success);
-      console.log(allSuccessful);
 
       if (allSuccessful) {
-        console.log("All changes saved successfully.");
         originalData.current = [...rows]; // Update original data after all saves are successful
         toast.success("All changes saved successfully.");
       } else {
@@ -176,8 +173,6 @@ const App = () => {
       row.createdAt !== null &&
       row.createdAt !== "invalid_date" &&
       !isNaN(new Date(row.createdAt).getTime());
-
-    console.log(isNaN(new Date(row.createdAt).getTime()));
 
     const isUpdatedDateValid =
       row.updatedAt !== undefined &&
@@ -251,7 +246,6 @@ const App = () => {
 
   const validateRowBOM = (row, index) => {
     const errors = [];
-    console.log(row);
     const item_id = parseInt(row.item_id);
     const component_id = parseInt(row.component_id);
     const id = parseInt(row.id);
@@ -262,6 +256,20 @@ const App = () => {
           existingRow.component_id === component_id) ||
         existingRow.id === id
     );
+
+    console.log(rows);
+    const isQuantityValid =
+      !isNaN(row.quantity) && row.quantity > 0 && row.quantity < 101;
+
+    const areIDsSame = item_id === component_id;
+
+    if (areIDsSame) {
+      errors.push("Item ID and Component ID cannot be the same.");
+    }
+
+    if (!isQuantityValid) {
+      errors.push("Quantity must be a valid number between 1 and 100.");
+    }
     if (existingItem) {
       errors.push(
         `Duplicate entry: item_id '${row.item_id}' and component_id '${row.component_id}' already exist.`
