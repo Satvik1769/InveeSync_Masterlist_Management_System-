@@ -64,6 +64,28 @@ const App = () => {
     }
 
     console.log("Modified rows:", modifiedRows);
+    const newErrors = [];
+    const validRows = [];
+
+    modifiedRows.forEach((row, index) => {
+      const error = isItem
+        ? validateRow(row, index + 1) // Validate using validateRow
+        : validateRowBOM(row, index + 1); // Validate using validateRowBOM
+
+      if (error) {
+        newErrors.push(error);
+      } else {
+        validRows.push(row); // Add to valid rows if no errors
+      }
+    });
+
+    // Log errors if validation failed
+    if (newErrors.length > 0) {
+      console.error("Validation errors:", newErrors);
+      setErrorLog(newErrors); // Set error log for the UI or debugging
+      toast.error("Validation errors found. Please fix them before saving.");
+      return;
+    }
 
     try {
       await Promise.all(
@@ -159,8 +181,8 @@ const App = () => {
     );
     const isSellnotValid =
       row.type === "sell" &&
-      (!row.additional_attributes_scrap_type ||
-        row.additional_attributes_scrap_type.trim() === "");
+      (!row.additional_attributes.scrap_type ||
+        row.additional_attributes.scrap_type.trim() === "");
 
     const isType = ["sell", "purchase", "component"].includes(row.type);
     const isUoMValid = ["kgs", "nos"].includes(row.uom);
@@ -192,9 +214,10 @@ const App = () => {
     if (!isTenantIdValid) {
       errors.push("Invalid Tenant ID");
     }
-    const isAverageWeightNeededValid = ["TRUE", "FALSE"].includes(
-      row.additional_attributes_avg_weight_needed
-    );
+    const bool = String(
+      row.additional_attributes.avg_weight_needed
+    ).toUpperCase();
+    const isAverageWeightNeededValid = ["TRUE", "FALSE"].includes(bool);
 
     if (!isInternalNameValid) {
       errors.push("Invalid Internal Item Name");
@@ -216,7 +239,6 @@ const App = () => {
     if (!isUoMValid) {
       errors.push(`Invalid UOM: ${row.uom}`);
     }
-
     if (isSellnotValid) {
       errors.push(`Scrap type is mandatory for items with type 'sell'.`);
     }
@@ -258,6 +280,8 @@ const App = () => {
           existingRow.component_id === component_id) ||
         existingRow.id === id
     );
+
+    console.log(item_id);
 
     const item = rowsItem.find((i) => i.id === item_id);
     const component = rowsItem.find((i) => i.id === component_id);
@@ -304,6 +328,30 @@ const App = () => {
     return errors.length > 0 ? { index, errors } : null;
   };
 
+  function convertToRequiredFormat(data) {
+    return data.map((item) => ({
+      id: item.id,
+      internal_item_name: item.internal_item_name,
+      tenant_id: parseInt(item.tenant_id, 10),
+      item_description: item.item_description,
+      uom: item.uom,
+      type: item.type,
+      max_buffer: parseInt(item.max_buffer, 10),
+      min_buffer: parseInt(item.min_buffer, 10),
+      customer_item_name: item.customer_item_name || "",
+      created_by: item.created_by,
+      last_updated_by: item.last_updated_by,
+      additional_attributes: {
+        avg_weight_needed: String(
+          item.additional_attributes__avg_weight_needed || false
+        ).toUpperCase(),
+        scrap_type: item.additional_attributes__scrap_type || "",
+      },
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
+    }));
+  }
+
   // Handle file upload
   const handleFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -323,7 +371,10 @@ const App = () => {
           const workbook = XLSX.read(e.target.result, { type: "array" });
           const sheetName = workbook.SheetNames[0]; // Get first sheet
           const sheet = workbook.Sheets[sheetName];
-          const parsedData = XLSX.utils.sheet_to_json(sheet);
+          let parsedData = XLSX.utils.sheet_to_json(sheet);
+          if (isItem) {
+            parsedData = convertToRequiredFormat(parsedData);
+          }
 
           // Validation for the parsed data
           if (!parsedData || parsedData.length === 0) {
@@ -459,6 +510,13 @@ const App = () => {
 
       if (isItem) {
         // Validation for Item Master
+        const validationError = validateRow(formData);
+        if (validationError.errors.length > 0) {
+          toast.error("There is an error in the form. See logs for details.");
+          handleClose();
+          return;
+        }
+
         if (!formData.internal_item_name || !formData.type || !formData.uom) {
           toast.error("Please fill in all mandatory fields.");
           return;
@@ -472,7 +530,7 @@ const App = () => {
         }
 
         if (
-          (formData.min_buffer == 0 || formData.max_buffer == 0) &&
+          (formData.min_buffer === 0 || formData.max_buffer === 0) &&
           formData.type !== "component"
         ) {
           formData.min_buffer = 0;
@@ -517,6 +575,13 @@ const App = () => {
         handleClose();
       } else {
         // Validation for BoM
+        const validationError = validateRowBOM(formData);
+        if (validationError.errors.length > 0) {
+          toast.error("There is an error in the form. See logs for details.");
+          handleClose();
+          return;
+        }
+
         if (!formData.item_id || !formData.component_id || !formData.quantity) {
           toast.error("Please fill in all mandatory fields.");
           return;
